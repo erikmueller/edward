@@ -29,7 +29,8 @@ defmodule Vindinium.Mixfile do
   defp deps do
     [
       {:httpoison, "~> 0.9"},
-      {:poison, "~> 3.0" }
+      {:poison, "~> 3.0" },
+      {:eastar, "~> 0.4.2"}
     ]
   end
 end
