@@ -7,20 +7,25 @@ defmodule Vindinium.Bots.Edward do
   @hero ~r/@\d/
   @hero_mine ~r/$\d/
 
-  def neighbors({x, y}) do
-    # TODO check if neighbor !== :free
-    [
-      {x, y + 1},
-      {x, y - 1},
-      {x + 1, y},
-      {x - 1, y}
-    ]
+  defp is_free(map) do
+    fn pos -> Enum.find_value(map, &(&1 |> Map.get(pos))) == :free end
   end
 
-  def dist({x1, y1}, {x2, y2}) do
-    # TODO if neighbor not free, increase distance (or check how dist/2 uses neighbor/2)
-    # maybe the lib is smart enough. For now return 2
-    2
+  def neighbors(map) do
+    fn ({x, y}) ->
+      [
+        {x, y + 1},
+        {x, y - 1},
+        {x + 1, y},
+        {x - 1, y}
+      ] |> Enum.filter(is_free(map))
+    end
+  end
+
+  def dist(map) do
+    fn (_start, goal) ->
+      if is_free(map).(goal), do: 1, else: 4
+    end
   end
 
   def h({x1, y1}, {x2, y2}) do
@@ -67,11 +72,11 @@ defmodule Vindinium.Bots.Edward do
   def move(state) do
     show_map(state["game"]["board"])
 
-    env = {&neighbors/1, &dist/2, &h/2}
+    coord_map = generate_coords(state["game"]["board"])
+
+    env = {neighbors(coord_map), dist(coord_map), &h/2}
     hero_pos = {state["hero"]["pos"]["x"], state["hero"]["pos"]["y"]}
     goal = {5, 8}
-
-    state["game"]["board"] |> generate_coords |> IO.inspect
 
     {current_x, current_y} = hero_pos
     {next_x, next_y} = Astar.astar(env, hero_pos, goal) |> List.first
