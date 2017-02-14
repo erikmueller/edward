@@ -1,24 +1,36 @@
 defmodule Vindinium.Bots.Edward do
-
+  @direct_neighbors [{0, 1}, {0, -1}, {1, 0}, {-1, 0}]
   @free "  "
   @obastacle "##"
   @tavern "[]"
-  @neutral_mine "$-"
+  @mine ~r/$[\d|-]/
   @hero ~r/@\d/
-  @hero_mine ~r/$\d/
 
   defp is_free(map) do
-    fn pos -> Enum.find_value(map, &(&1 |> Map.get(pos))) == :free end
+    fn pos ->
+        Enum.find_value(map, &(Map.get(&1, pos))) === :free
+    end
   end
 
-  def neighbors(map) do
+  defp manhatten({x1, y1}, {x2, y2}) do
+    abs(x1 - x2) + abs(y1 - y2)
+  end
+
+  def neighbors(map, size) do
     fn ({x, y}) ->
-      [
-        {x, y + 1},
-        {x, y - 1},
-        {x + 1, y},
-        {x - 1, y}
-      ] |> Enum.filter(is_free(map))
+        for {nx, ny} <- @direct_neighbors do
+            {tx, ty} = {x + nx, y + ny}
+
+            if (tx < size
+                && tx > -1
+                && ty < size
+                && ty > -1
+                && is_free(map).({tx, ty})
+                # && !Enum.member?(visited, {tx, ty})
+            ) do
+                {tx, ty}
+            end
+        end |> Enum.filter(&is_tuple/1)
     end
   end
 
@@ -28,9 +40,7 @@ defmodule Vindinium.Bots.Edward do
     end
   end
 
-  def h({x1, y1}, {x2, y2}) do
-    abs(x1 - x2) + abs(y1 - y2)
-  end
+  def h(pos1, pos2), do: manhatten(pos1, pos2)
 
   def generate_coords(%{"size" => size, "tiles" => tiles}) do
     split_tiles = tiles
@@ -44,9 +54,8 @@ defmodule Vindinium.Bots.Edward do
         tile == @free -> :free
         tile == @obastacle -> :obstacle
         tile == @tavern -> :tavern
-        tile == @neutral_mine -> :mine
+        String.match?(tile, @mine) -> :mine
         String.match?(tile, @hero) -> :hero
-        String.match?(tile, @hero_mine) -> :hero_mine
         true -> :other
       end
 
@@ -73,8 +82,9 @@ defmodule Vindinium.Bots.Edward do
     show_map(state["game"]["board"])
 
     coord_map = generate_coords(state["game"]["board"])
+    size = state["game"]["board"]["size"]
 
-    env = {neighbors(coord_map), dist(coord_map), &h/2}
+    env = {neighbors(coord_map, size), dist(coord_map), &h/2}
     hero_pos = {state["hero"]["pos"]["x"], state["hero"]["pos"]["y"]}
     goal = {5, 8}
 
